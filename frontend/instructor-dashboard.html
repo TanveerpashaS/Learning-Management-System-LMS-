@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Instructor Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-white min-h-screen p-6">
+
+  <!-- Header -->
+  <header class="mb-8">
+    <h1 class="text-4xl font-extrabold text-blue-700">📘 Instructor Dashboard</h1>
+    <p class="text-gray-600 mt-1">Manage your courses and monitor student progress effectively.</p>
+  </header>
+
+  <!-- Welcome -->
+  <section class="bg-white p-6 rounded-xl shadow-md mb-8">
+    <h2 class="text-2xl font-semibold text-gray-800">
+      Welcome, <span id="username" class="text-blue-600 font-bold"></span> 👋
+    </h2>
+  </section>
+
+  <!-- Create Course Form -->
+  <section class="bg-white p-6 rounded-xl shadow-md mb-8">
+    <h3 class="text-xl font-semibold text-gray-700 mb-4">➕ Create a New Course</h3>
+    <form id="courseForm" class="space-y-4">
+      <input type="text" id="title" placeholder="Course Title" class="w-full p-3 border rounded" required />
+      <textarea id="description" placeholder="Course Description" class="w-full p-3 border rounded h-28" required></textarea>
+      <input type="text" id="category" placeholder="Category (e.g. Programming)" class="w-full p-3 border rounded" />
+      <input type="text" id="level" placeholder="Level (Beginner/Intermediate/Advanced)" class="w-full p-3 border rounded" />
+      <input type="text" id="duration" placeholder="Duration (e.g. 10 hours)" class="w-full p-3 border rounded" />
+      <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">Create Course</button>
+    </form>
+  </section>
+
+  <!-- My Courses -->
+  <section class="bg-white p-6 rounded-xl shadow-md">
+    <h3 class="text-xl font-semibold text-gray-700 mb-4">📚 My Courses</h3>
+    <div id="courseList" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+  </section>
+
+  <!-- Edit Modal -->
+  <div id="editModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white p-6 rounded-xl w-full max-w-md">
+      <h3 class="text-lg font-bold mb-4">✏️ Edit Course</h3>
+      <input type="text" id="editTitle" class="w-full mb-3 p-2 border rounded" placeholder="Title">
+      <textarea id="editDescription" class="w-full mb-3 p-2 border rounded h-24" placeholder="Description"></textarea>
+      <input type="text" id="editCategory" class="w-full mb-3 p-2 border rounded" placeholder="Category">
+      <input type="text" id="editLevel" class="w-full mb-3 p-2 border rounded" placeholder="Level">
+      <input type="text" id="editDuration" class="w-full mb-3 p-2 border rounded" placeholder="Duration">
+      <div class="flex justify-end space-x-2">
+        <button onclick="closeModal()" class="px-4 py-2 bg-gray-300 rounded">Cancel</button>
+        <button onclick="submitEdit()" class="px-4 py-2 bg-blue-600 text-white rounded">Update</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const apiBase = 'http://localhost:5000/api/instructor';
+    const user = JSON.parse(localStorage.getItem('lmsUser'));
+    if (!user || user.role !== 'instructor') window.location.href = 'login.html';
+    document.getElementById('username').innerText = user.username;
+
+    // Create
+    document.getElementById('courseForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const payload = {
+        title:        e.target.title.value,
+        description:  e.target.description.value,
+        category:     e.target.category.value,
+        level:        e.target.level.value,
+        duration:     e.target.duration.value,
+        instructor_id: user.id
+      };
+      const res = await fetch(`${apiBase}/course`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+      });
+      alert((await res.json()).message);
+      e.target.reset();
+      loadCourses();
+    });
+
+    let currentEditId = null;
+    function openEditModal(c) {
+      currentEditId = c.id;
+      document.getElementById('editTitle').value       = c.title;
+      document.getElementById('editDescription').value = c.description;
+      document.getElementById('editCategory').value    = c.category || '';
+      document.getElementById('editLevel').value       = c.level || '';
+      document.getElementById('editDuration').value    = c.duration || '';
+      document.getElementById('editModal').classList.remove('hidden');
+    }
+    function closeModal() {
+      document.getElementById('editModal').classList.add('hidden');
+    }
+    async function submitEdit() {
+      const payload = {
+        title:        document.getElementById('editTitle').value,
+        description:  document.getElementById('editDescription').value,
+        category:     document.getElementById('editCategory').value,
+        level:        document.getElementById('editLevel').value,
+        duration:     document.getElementById('editDuration').value
+      };
+      const res = await fetch(`${apiBase}/course/${currentEditId}`, {
+        method: 'PUT',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+      });
+      alert((await res.json()).message);
+      closeModal();
+      loadCourses();
+    }
+
+    async function deleteCourse(id) {
+      if (!confirm('Delete this course?')) return;
+      const res = await fetch(`${apiBase}/course/${id}`, { method: 'DELETE' });
+      alert((await res.json()).message);
+      loadCourses();
+    }
+
+    // Load
+    async function loadCourses() {
+      const res = await fetch(`${apiBase}/courses?instructor_id=${user.id}`);
+      const courses = await res.json();
+      const list = document.getElementById('courseList');
+      list.innerHTML = '';
+      if (!courses.length) {
+        list.innerHTML = '<p class="text-gray-500">No courses yet.</p>';
+        return;
+      }
+      courses.forEach(c => {
+        const card = document.createElement('div');
+        card.className = 'bg-blue-50 hover:bg-white p-5 rounded-xl shadow border';
+        card.innerHTML = `
+          <h4 class="text-lg font-bold text-blue-800 mb-1">${c.title}</h4>
+          <p class="text-gray-700 mb-2">${c.description}</p>
+          <p class="text-sm text-gray-500">📂 ${c.category || 'Uncategorized'}</p>
+          <p class="text-sm text-gray-500">📘 ${c.level || 'All Levels'}</p>
+          <p class="text-sm text-gray-500 mb-2">⏱ ${c.duration || 'N/A'}</p>
+          <p class="text-sm text-gray-500 mb-1">👥 ${c.total_students} Enrolled</p>
+          <p class="text-sm text-gray-500 mb-3">📈 Avg ${parseFloat(c.avg_progress).toFixed(2)}%</p>
+          <div class="flex space-x-2">
+            <button onclick='openEditModal(${JSON.stringify(c)})' class="px-3 py-1 bg-yellow-400 text-white rounded">✏️</button>
+            <button onclick="deleteCourse(${c.id})" class="px-3 py-1 bg-red-500 text-white rounded">🗑️</button>
+          </div>
+        `;
+        list.appendChild(card);
+      });
+    }
+    loadCourses();
+  </script>
+</body>
+</html>

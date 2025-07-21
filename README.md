@@ -59,10 +59,5 @@ Pull requests are welcome. Feel free to open issues or suggest improvements.
 
 ---
 
-## 📬 Contact
-
-Built by **Tanveer Pasha S** – [LinkedIn](https://www.linkedin.com/in/tanveers786)
----
-
 
 
